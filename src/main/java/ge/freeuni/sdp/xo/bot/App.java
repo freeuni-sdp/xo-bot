@@ -9,7 +9,9 @@ public class App {
 	private static String[] names={"login","signin","chat","rooms","game","achiev","history"};
 	private static String before="http://xo-";
 	private static String after=".herokuapp.com/webapi/ping";
+	//returns response code for ping
 	public static int getStatusForServiceName(String serviceName) throws IOException{
+		
 		String url=before+serviceName+after;
 		URL obj = new URL(url);
 		HttpURLConnection con = (HttpURLConnection) obj.openConnection();
