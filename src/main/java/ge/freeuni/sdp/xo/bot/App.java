@@ -19,9 +19,9 @@ public class App {
 		String url=before+serviceName+after;
 		Response r=c.target(url).request().get();
 		return r.getStatus();
-		
+
 	}
-	
+
 	public static void main(String[] args) throws IOException {
 		ClientConfig config = new ClientConfig().register(JacksonFeature.class);
 		Client client = ClientBuilder.newClient(config);
@@ -30,7 +30,7 @@ public class App {
 			System.out.println("Host: " + before+names[i]+after);
 			System.out.println("Response Code : " + responseCode);
 		}
-		
- 
+
+
 	}
 }
