@@ -11,7 +11,7 @@ import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.jackson.JacksonFeature;
 
 public class App {
-	private static String[] names={"login","signin","chat","rooms","game","achiev","history"};
+	private static String[] names={"login","signin","chat","rooms","game-sdp","achiev","history"};
 	private static String before="http://xo-";
 	private static String after=".herokuapp.com/webapi/ping";
 	//returns response code for ping
