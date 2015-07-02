@@ -1,86 +1,103 @@
 
 package ge.freeuni.sdp.xo.bot;
 
-import ge.freeuni.sdp.xo.bot.OptionList;
 
 import java.io.IOException;
 
 
 
-import java.util.Scanner;
+import java.util.ArrayList;
 
-import javax.ws.rs.client.Client;
-
-import javax.ws.rs.core.Response;
+import javax.ws.rs.WebApplicationException;
 
 public class App {
-
-	private static ServiceProxy proxy;
-	public static Scanner scanner;
-
-	private static String[] names={"signin","achiev","game","chat","login","rooms","history"};
-	private static String[] mocks={
-		"http://private-770c3-xosignin.apiary-mock.com",
-		"http://private-cee85-xoachiev.apiary-mock.com",
-		"http://private-8ed96-xogame.apiary-mock.com/webapi",
-		"http://private-60b4a-xochat1.apiary-mock.com",
-		"http://private-72df70-xologinapi.apiary-mock.com",
-		"http://private-5192e-xorooms.apiary-mock.com",
-		"http://private-95cbf-xohistory.apiary-mock.com"
+	//default names for bots
+	private String[] botUserNames={
+		"Jack","Jill","John","Jenny", "Mixo","Maro"
 	};
-	
-
-	
-	private static String before="http://xo-";
-	private static String after=".herokuapp.com/";
-	//returns response code for ping
-	public static int getStatusForServiceName(String serviceName,Client c) throws IOException{
-		String url=before+serviceName+after;
-		Response r=c.target(url).request().get();
-		return r.getStatus();
-
+	//last part of email. first is the name
+	private String email="@freeuni.edu.ge";
+	//for keeping track which bot should be created next
+	private int nextBot;
+	private Bot firstBot;
+	//password for each bot
+	private String botPassword="123456";
+	//minimal number of rooms to be free in order for the program to start
+	private int min_num_rooms=3;
+	private SigninService xoSignin;
+	private LoginService xoLogin;
+	private RoomsService xoRooms;
+	//number of bots to start
+	private int numBots;
+	//to keep track of free rooms
+	private ArrayList<String> freeRooms;
+	//boolean for knowing whether use a real server or mocked one
+	private boolean isReal;
+	public App(boolean isReal,int numBots){
+		this.numBots=numBots;
+		this.isReal=isReal;
+		xoSignin=new SigninService(isReal);
+		xoLogin=new LoginService(isReal);
+		xoRooms=new RoomsService(isReal);
+		freeRooms=new ArrayList<>();
+		nextBot=0;
+		//first bot is needed to have a token to see all rooms
+		firstBot=initBot("-1");
 	}
-
-	public static void main(String[] args) throws IOException {
-//		HashMap<String, String> mocked=new HashMap<String, String>();
-//		HashMap<String, String> real=new HashMap<String, String>();
-//		for(int i=0;i<names.length;i++){
-//			mocked.put(blueprints[i], mocks[i]);
-//			real.put(blueprints[i], before+names[i]+after);
-//		}
-//		ClientConfig config = new ClientConfig().register(JacksonFeature.class);
-//		Client client = ClientBuilder.newClient(config);
-//		for(int i=0;i<names.length;i++){
-//	//		int responseCode = getStatusForServiceName(names[i],client);
-//		//	System.out.println("Host: " + before+names[i]+after);
-//			//System.out.println("Response Code : " + responseCode);
-//		}
-		scanner = new Scanner(System.in);
-		int id = new OptionList<Integer>()
-				.title("Select service URI:")
-				.add("xo-signin",
-						1)
-				.add("xo-achiev",
-						2)
-				.add("xo-game",
-						3)
-				.add("xo-chat",
-						4)
-				.add("xo-login",
-						5)
-				.add("xo-rooms",
-						6)
-				.add("xo-history",
-						7)
-				.read(scanner);
-		switch(id){
-			case 1:
-				SigninService.start(scanner);
-				break;
+	/*initializes the bot and gives the roomId which he will later occupy,
+	 * tries to login with bot, if cant then its either a server error or the bot is not registers.
+	 * If its last then registers bot
+	*/
+	private Bot initBot(String roomId){
+		String token=xoLogin.loginUser(botUserNames[nextBot], botPassword);
+		if(token==null) {
+			int resCode=xoSignin.RegisterUser(botUserNames[nextBot]+email, botUserNames[nextBot], botPassword);
+			if(resCode!=200)throw new WebApplicationException(resCode);
+			token=xoLogin.loginUser(botUserNames[nextBot], botPassword);
+			Bot bot=new Bot(nextBot, token,new RoomsService(isReal),new GameService(isReal),roomId);
+			nextBot++;
+			return bot;
+		}else if (token.equals("")){
+			throw new WebApplicationException();
+			
+		}else{
+			
+			Bot bot=new Bot(nextBot, token,new RoomsService(isReal),new GameService(isReal),roomId);
+			nextBot++;
+			return bot;
 		}
-
-
-	}
 		
+		
+	}
+	//checking if the number of rooms unoccupied is more than minimum if so then the bots are activated
+	public void listen(){
+		ArrayList<Room> rooms;
+		while(true){
+			rooms=xoRooms.getAllRooms(firstBot.getToken());
+			int counter=0;
+			for(int i=0;i<rooms.size();i++){
+				Room cur=rooms.get(i);
+				if(cur.geto_user()==null && cur.getx_user()==null){
+					counter++;
+					freeRooms.add(cur.getId());
+				}
+			}
+			if(counter>min_num_rooms) start();
+		}
+	}
+	//creates bots and starts each bot thread to start occupying rooms and waiting for users
+	private void start() {
+		
+		Bot[] bots=new Bot[numBots-1];
+		firstBot.setRoomId(freeRooms.remove(0));
+		int counter=Math.min(freeRooms.size(), numBots-1);
+		for(int i=nextBot;i<=counter;i++){
+			bots[i]=initBot(freeRooms.remove(0));
+			new Thread(bots[i]).start();
+		}
+		new Thread(firstBot).start();
+		
+	}
+	
 	
 }

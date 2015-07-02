@@ -31,7 +31,7 @@ public class ServiceProxy {
 					.target(uri + "/" + id)
 					.request(MediaType.TEXT_PLAIN_TYPE)
 					.get();
-
+		
 		if (is404(response)) {
 			return null;
 		}
@@ -39,10 +39,10 @@ public class ServiceProxy {
 		return response;
 	}
 
-	public Response create(String res ,String task) {
+	public Response create(String res ,String task,String type) {
 		Response response = client 
 				.target(uri+"/"+res)
-				.request()
+				.request(type)
 				.post(Entity.entity(task, MediaType.APPLICATION_JSON_TYPE));
 
 		
@@ -62,12 +62,12 @@ public class ServiceProxy {
 		return response.readEntity(String.class);
 	}
 	
-	public Boolean delete(String id) {
+	public Response delete(String id) {
 		Response response = client
 				.target(uri + "/" + id)
 				.request()
 				.delete();
-		return !is404(response);
+		return response;
 	}
 	
 	private boolean is404(Response response) {
